@@ -9,7 +9,6 @@ import com.eastmoney.video.network.aliupload.callback.ServiceException;
 import com.eastmoney.video.network.aliupload.model.AbortMultipartUploadRequest;
 import com.eastmoney.video.network.aliupload.model.CompleteMultipartUploadRequest;
 import com.eastmoney.video.network.aliupload.model.CompleteMultipartUploadResult;
-import com.eastmoney.video.network.aliupload.model.HeadObjectRequest;
 import com.eastmoney.video.network.aliupload.model.InitiateMultipartUploadRequest;
 import com.eastmoney.video.network.aliupload.model.InitiateMultipartUploadResult;
 import com.eastmoney.video.network.aliupload.model.ListPartsRequest;

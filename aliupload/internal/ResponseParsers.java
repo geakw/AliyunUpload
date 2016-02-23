@@ -5,17 +5,10 @@ package com.eastmoney.video.network.aliupload.internal;
 import com.eastmoney.video.network.aliupload.callback.ServiceException;
 import com.eastmoney.video.network.aliupload.common.OSSHeaders;
 import com.eastmoney.video.network.aliupload.model.AbortMultipartUploadResult;
-import com.eastmoney.video.network.aliupload.model.AppendObjectResult;
 import com.eastmoney.video.network.aliupload.model.CompleteMultipartUploadResult;
-import com.eastmoney.video.network.aliupload.model.CopyObjectResult;
-import com.eastmoney.video.network.aliupload.model.GetBucketACLResult;
-import com.eastmoney.video.network.aliupload.model.GetObjectResult;
-import com.eastmoney.video.network.aliupload.model.HeadObjectResult;
 import com.eastmoney.video.network.aliupload.model.InitiateMultipartUploadResult;
-import com.eastmoney.video.network.aliupload.model.ListObjectsResult;
 import com.eastmoney.video.network.aliupload.model.ListPartsResult;
 import com.eastmoney.video.network.aliupload.model.OSSObjectSummary;
-import com.eastmoney.video.network.aliupload.model.ObjectMetadata;
 import com.eastmoney.video.network.aliupload.model.PartSummary;
 import com.eastmoney.video.network.aliupload.model.PutObjectResult;
 import com.eastmoney.video.network.aliupload.model.UploadPartResult;
@@ -69,82 +62,6 @@ public final class ResponseParsers {
                     result.setServerCallbackReturnBody(response.body().string());
                 }
                 return result;
-            } finally {
-                safeCloseResponse(response);
-            }
-        }
-    }
-
-    public static final class AppendObjectResponseParser implements ResponseParser<AppendObjectResult> {
-
-        @Override
-        public AppendObjectResult parse(Response response) throws IOException {
-            try {
-                AppendObjectResult result = new AppendObjectResult();
-                result.setRequestId(response.header(OSSHeaders.OSS_HEADER_REQUEST_ID));
-                result.setStatusCode(response.code());
-                result.setResponseHeader(parseResponseHeader(response));
-
-                String nextPosition = response.header(OSSHeaders.OSS_NEXT_APPEND_POSITION);
-                if (nextPosition != null) {
-                    result.setNextPosition(Long.valueOf(nextPosition));
-                }
-                result.setObjectCRC64(response.header(OSSHeaders.OSS_HASH_CRC64_ECMA));
-                return result;
-            } finally {
-                safeCloseResponse(response);
-            }
-        }
-    }
-
-    public static final class HeadObjectResponseParser implements ResponseParser<HeadObjectResult> {
-
-        @Override
-        public HeadObjectResult parse(Response response) throws IOException {
-            HeadObjectResult result = new HeadObjectResult();
-            try {
-                result.setRequestId(response.header(OSSHeaders.OSS_HEADER_REQUEST_ID));
-                result.setStatusCode(response.code());
-                result.setResponseHeader(parseResponseHeader(response));
-                result.setMetadata(parseObjectMetadata(result.getResponseHeader()));
-                return result;
-            } finally {
-                safeCloseResponse(response);
-            }
-        }
-    }
-
-    public static final class GetObjectResponseParser implements ResponseParser<GetObjectResult> {
-
-        @Override
-        public GetObjectResult parse(Response response) throws IOException {
-            GetObjectResult result = new GetObjectResult();
-
-            result.setRequestId(response.header(OSSHeaders.OSS_HEADER_REQUEST_ID));
-            result.setStatusCode(response.code());
-            result.setResponseHeader(parseResponseHeader(response));
-            result.setMetadata(parseObjectMetadata(result.getResponseHeader()));
-            result.setContentLength(response.body().contentLength());
-            result.setObjectContent(response.body().byteStream());
-
-            // keep body stream open for reading content
-            return result;
-        }
-    }
-
-    public static final class CopyObjectResponseParser implements ResponseParser<CopyObjectResult> {
-
-        @Override
-        public CopyObjectResult parse(Response response) throws IOException {
-            try {
-                CopyObjectResult result = parseCopyObjectResponseXML(response.body().byteStream());
-                result.setRequestId(response.header(OSSHeaders.OSS_HEADER_REQUEST_ID));
-                result.setStatusCode(response.code());
-                result.setResponseHeader(parseResponseHeader(response));
-                return result;
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new IOException(e.getMessage(), e);
             } finally {
                 safeCloseResponse(response);
             }
@@ -252,29 +169,6 @@ public final class ResponseParsers {
         }
     }
 
-    private static CopyObjectResult parseCopyObjectResponseXML(InputStream in)
-            throws ParseException, ParserConfigurationException, IOException, SAXException {
-
-        CopyObjectResult result = new CopyObjectResult();
-        DocumentBuilder builder = domFactory.newDocumentBuilder();
-        Document dom = builder.parse(in);
-        Element element = dom.getDocumentElement();
-        OSSLog.logD("[item] - " + element.getNodeName());
-
-        NodeList list = element.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++) {
-            Node item = list.item(i);
-            String name = item.getNodeName();
-            if (name == null) {
-                continue;
-            } else if (name.equals("LastModified")) {
-                result.setLastModified(DateUtil.parseIso8601Date(checkChildNotNullAndGetValue(item)));
-            } else if (name.equals("ETag")) {
-                result.setEtag(checkChildNotNullAndGetValue(item));
-            }
-        }
-        return result;
-    }
 
     private static ListPartsResult parseListPartsResponseXML(InputStream in)
             throws ParserConfigurationException, IOException, SAXException, ParseException {
@@ -450,114 +344,6 @@ public final class ResponseParsers {
         return "";
     }
 
-    /**
-     * 解析GetBucketACL请求的响应体
-     * @param in
-     * @return
-     * @throws Exception
-     */
-    private static GetBucketACLResult parseGetBucketACLResponse(InputStream in)
-            throws ParserConfigurationException, IOException, SAXException, ParseException {
-        GetBucketACLResult result = new GetBucketACLResult();
-        DocumentBuilder builder = domFactory.newDocumentBuilder();
-        Document dom = builder.parse(in);
-        Element element = dom.getDocumentElement();
-        OSSLog.logD("[parseGetBucketACLResponse - " + element.getNodeName());
-        NodeList list = element.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++) {
-            Node item = list.item(i);
-            String name = item.getNodeName();
-            if (name == null) {
-                continue;
-            } else if (name.equals("Owner")) {
-                NodeList ownerList = item.getChildNodes();
-                for (int j = 0; j < ownerList.getLength(); j++) {
-                    Node ownerItem = ownerList.item(j);
-                    String ownerName = ownerItem.getNodeName();
-                    if (ownerName == null) {
-                        continue;
-                    } else if (ownerName.equals("ID")) {
-                        result.setBucketOwnerID(checkChildNotNullAndGetValue(ownerItem));
-                    } else if (ownerName.equals("DisplayName")) {
-                        result.setBucketOwner(checkChildNotNullAndGetValue(ownerItem));
-                    }
-                }
-            } else if (name.equals("AccessControlList")) {
-                NodeList aclList = item.getChildNodes();
-                for (int k = 0; k < aclList.getLength(); k++) {
-                    Node aclItem = aclList.item(k);
-                    String aclName = aclItem.getNodeName();
-                    if (aclName == null) {
-                        continue;
-                    } else if (aclName.equals("Grant")) {
-                        result.setBucketACL(checkChildNotNullAndGetValue(aclItem));
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 解析listObjectInBucket请求的响应体
-     *
-     * @param in
-     * @return
-     * @throws Exception
-     */
-    private static ListObjectsResult parseObjectListResponse(InputStream in)
-            throws ParserConfigurationException, IOException, SAXException, ParseException {
-        ListObjectsResult result = new ListObjectsResult();
-        DocumentBuilder builder = domFactory.newDocumentBuilder();
-        Document dom = builder.parse(in);
-        Element element = dom.getDocumentElement();
-        OSSLog.logD("[parseObjectListResponse] - " + element.getNodeName());
-
-        NodeList list = element.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++) {
-            Node item = list.item(i);
-            String name = item.getNodeName();
-            if (name == null) {
-                continue;
-            } else if (name.equals("Name")) {
-                result.setBucketName(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("Prefix")) {
-                result.setPrefix(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("Marker")) {
-                result.setMarker(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("Delimiter")) {
-                result.setDelimiter(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("EncodingType")) {
-                result.setEncodingType(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("MaxKeys")) {
-                String maxKeys = checkChildNotNullAndGetValue(item);
-                if (maxKeys != null) {
-                    result.setMaxKeys(Integer.valueOf(maxKeys));
-                }
-            } else if (name.equals("NextMarker")) {
-                result.setNextMarker(checkChildNotNullAndGetValue(item));
-            } else if (name.equals("IsTruncated")) {
-                String isTruncated = checkChildNotNullAndGetValue(item);
-                if (isTruncated != null) {
-                    result.setTruncated(Boolean.valueOf(isTruncated));
-                }
-            } else if (name.equals("Contents")) {
-                if (item.getChildNodes() == null) {
-                    continue;
-                }
-                result.getObjectSummaries().add(parseObjectSummaryXML(item.getChildNodes()));
-            } else if (name.equals("CommonPrefixes")) {
-                if (item.getChildNodes() == null) {
-                    continue;
-                }
-                String prefix = parseCommonPrefixXML(item.getChildNodes());
-                if (prefix != null) {
-                    result.getCommonPrefixes().add(prefix);
-                }
-            }
-        }
-        return result;
-    }
 
     public static String trimQuotes(String s) {
         if (s == null) return null;
@@ -569,41 +355,6 @@ public final class ResponseParsers {
         return s;
     }
 
-    /**
-     * Unmarshall object metadata from response headers.
-     */
-    public static ObjectMetadata parseObjectMetadata(Map<String, String> headers)
-            throws IOException {
-
-        try {
-            ObjectMetadata objectMetadata = new ObjectMetadata();
-
-            for (Iterator<String> it = headers.keySet().iterator(); it.hasNext();) {
-                String key = it.next();
-
-                if (key.indexOf(OSSHeaders.OSS_USER_METADATA_PREFIX) >= 0) {
-                    objectMetadata.addUserMetadata(key, headers.get(key));
-                } else if (key.equals(OSSHeaders.LAST_MODIFIED) || key.equals(OSSHeaders.DATE)) {
-                    try {
-                        objectMetadata.setHeader(key, DateUtil.parseRfc822Date(headers.get(key)));
-                    } catch (ParseException pe) {
-                        throw new IOException(pe.getMessage(), pe);
-                    }
-                } else if (key.equals(OSSHeaders.CONTENT_LENGTH)) {
-                    Long value = Long.valueOf(headers.get(key));
-                    objectMetadata.setHeader(key, value);
-                } else if (key.equals(OSSHeaders.ETAG)) {
-                    objectMetadata.setHeader(key, trimQuotes(headers.get(key)));
-                } else {
-                    objectMetadata.setHeader(key, headers.get(key) );
-                }
-            }
-
-            return objectMetadata;
-        } catch (Exception e) {
-            throw new IOException(e.getMessage(), e);
-        }
-    }
 
     public static Map<String, String> parseResponseHeader(Response response) {
         Map<String, String> result = new HashMap<String, String>();

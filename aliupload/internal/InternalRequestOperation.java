@@ -75,8 +75,9 @@ public class InternalRequestOperation {
             PutObjectRequest request, OSSCompletedCallback<PutObjectRequest, PutObjectResult> completedCallback) {
 
         RequestMessage requestMessage = new RequestMessage();
-        requestMessage.setMethod(HttpMethod.PUT);
+        requestMessage.setMethod(HttpMethod.POST);
         requestMessage.setUrl(request.getUrl());
+        requestMessage.getParameters().put("filename",request.getObjectKey());
         requestMessage.setObjectKey(request.getObjectKey());
         if (request.getUploadData() != null) {
             requestMessage.setUploadData(request.getUploadData());

@@ -25,7 +25,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 import okhttp3.Call;
+import okhttp3.Headers;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -169,6 +171,14 @@ public class OSSRequestTask<T extends OSSResult> implements Callable<T> {
 
             String contentType = message.getHeaders().get(OSSHeaders.CONTENT_TYPE);
 
+//            RequestBody requestBody = new MultipartBody.Builder()
+//                    .setType(MultipartBody.FORM)
+//                    .addFormDataPart("filename","hello")
+//                    .addFormDataPart("hello","hello",new ProgressTouchableRequestBody(new File(message.getUploadFilePath()),
+//                            "application/octet-stream", context.getProgressCallback()))
+//                    .build();
+//            requestBuilder.post(requestBody);
+
             // set request body
             switch (message.getMethod()) {
                 case POST:
@@ -227,6 +237,7 @@ public class OSSRequestTask<T extends OSSResult> implements Callable<T> {
                 for (String key : headerMap.keySet()) {
                     OSSLog.logD("responseHeader " + key + ": " + headerMap.get(key).get(0));
                 }
+                OSSLog.logD("response message: " + response.body().string());
             }
         } catch (Exception e) {
             OSSLog.logE("Encounter local execpiton: " + e.toString());
