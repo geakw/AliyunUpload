@@ -1,0 +1,81 @@
+package com.eastmoney.video.network.aliupload.internal;
+
+
+import com.eastmoney.video.network.aliupload.ExecutionContext;
+import com.eastmoney.video.network.aliupload.callback.ClientException;
+import com.eastmoney.video.network.aliupload.callback.ServiceException;
+import com.eastmoney.video.network.aliupload.model.OSSResult;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+/**
+ * Created by zhouzhuo on 11/23/15.
+ */
+public class OSSAsyncTask<T extends OSSResult> {
+
+    private Future<T> future;
+
+    private ExecutionContext context;
+
+    /**
+     * 取消任务
+     */
+    public void cancel() {
+        if (context != null) {
+            context.getCancellationHandler().cancel();
+        }
+    }
+
+    /**
+     * 检查任务是否已经完成
+     *
+     * @return
+     */
+    public boolean isCompleted() {
+        return future.isDone();
+    }
+
+    /**
+     * 阻塞等待任务完成，并获取结果
+     *
+     * @return
+     * @throws ClientException
+     * @throws ServiceException
+     */
+    public T getResult() throws ClientException, ServiceException {
+        try {
+            T result = future.get();
+            return result;
+        } catch (InterruptedException e) {
+            throw new ClientException(e.getMessage(), e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            } else if (cause instanceof ServiceException) {
+                throw (ServiceException) cause;
+            } else {
+                cause.printStackTrace();
+                throw new ClientException("Unexpected exception!" + cause.getMessage());
+            }
+        }
+    }
+
+    public static OSSAsyncTask wrapRequestTask(Future future, ExecutionContext context) {
+        OSSAsyncTask asynTask = new OSSAsyncTask();
+        asynTask.future = future;
+        asynTask.context = context;
+        return asynTask;
+    }
+
+    /**
+     * 阻塞等待任务完成
+     */
+    public void waitUntilFinished() {
+        try {
+            future.get();
+        } catch (Exception ignore) {
+        }
+    }
+}
